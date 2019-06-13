@@ -86,7 +86,7 @@ def persist_lines(config, lines):
             raise Exception("Bucket {0} does not exist!".format(target_bucket))
 
     # create temp directory for processing
-    with tempfile.mktemp() as temp_dir:
+    with tempfile.TemporaryDirectory() as temp_dir:
 
         # Loop over lines from stdin
         for line in lines:
@@ -203,4 +203,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
