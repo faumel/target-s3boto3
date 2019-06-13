@@ -6,6 +6,7 @@ import re
 import os
 import sys
 import json
+import tempfile
 import threading
 import http.client
 import urllib
@@ -84,65 +85,67 @@ def persist_lines(config, lines):
         if error_code == '404':
             raise Exception("Bucket {0} does not exist!".format(target_bucket))
 
-    # Loop over lines from stdin
-    for line in lines:
-        try:
-            o = json.loads(line)
-        except json.decoder.JSONDecodeError:
-            logger.error("Unable to parse:\n{}".format(line))
-            raise
+    # create temp directory for processing
+    with tempfile.mktemp() as temp_dir:
 
-        if 'type' not in o:
-            raise Exception("Line is missing required key 'type': {}".format(line))
-        t = o['type']
+        # Loop over lines from stdin
+        for line in lines:
+            try:
+                o = json.loads(line)
+            except json.decoder.JSONDecodeError:
+                logger.error("Unable to parse:\n{}".format(line))
+                raise
 
-        if t == 'RECORD':
-            if 'stream' not in o:
-                raise Exception("Line is missing required key 'stream': {}".format(line))
-            if o['stream'] not in schemas:
-                raise Exception("A record for stream {} was encountered before a corresponding schema".format(o['stream']))
+            if 'type' not in o:
+                raise Exception("Line is missing required key 'type': {}".format(line))
+            t = o['type']
 
-            # Get schema for this record's stream
-            # schema = schemas[o['stream']]
+            if t == 'RECORD':
+                if 'stream' not in o:
+                    raise Exception("Line is missing required key 'stream': {}".format(line))
+                if o['stream'] not in schemas:
+                    raise Exception("A record for stream {} was encountered before a corresponding schema".format(o['stream']))
 
-            # Validate record
-            validators[o['stream']].validate(o['record'])
+                # Get schema for this record's stream
+                # schema = schemas[o['stream']]
 
-            # If the record needs to be flattened, uncomment this line
-            # flattened_record = flatten(o['record'])
+                # Validate record
+                validators[o['stream']].validate(o['record'])
 
-            #  writing to a file for the stream
-            out_files[o['stream']].write(json.dumps(o['record']) + '\n')
+                # If the record needs to be flattened, uncomment this line
+                # flattened_record = flatten(o['record'])
 
-            state = None
-        elif t == 'STATE':
-            logger.debug('Setting state to {}'.format(o['value']))
-            state = o['value']
-        elif t == 'SCHEMA':
-            if 'stream' not in o:
-                raise Exception("Line is missing required key 'stream': {}".format(line))
-            stream = o['stream']
-            schemas[stream] = o['schema']
-            validators[stream] = Draft4Validator(o['schema'])
-            if 'key_properties' not in o:
-                raise Exception("key_properties field is required")
-            key_properties[stream] = o['key_properties']
-            out_files[stream] = open("{0}-{1}.json".format(stream, now), 'a')
-        else:
-            raise Exception("Unknown message type {} in message {}"
-                            .format(o['type'], o))
+                #  writing to a file for the stream
+                out_files[o['stream']].write(json.dumps(o['record']) + '\n')
 
-    # Close all stream files and move to s3 target location
-    for file_iter in out_files.keys():
-        out_files[file_iter].close()
-        try:
-            logger.info('Moving file ({0}) to s3 location: {1}/{2} ...'.format(out_files[file_iter].name, target_bucket,target_key))
-            s3_client.upload_file(out_files[file_iter].name,
-                                  target_bucket,
-                                  target_key + "/" + out_files[file_iter].name)
-        except ClientError as e:
-            logger.error(e)
-        os.remove(out_files[file_iter].name)
+                state = None
+            elif t == 'STATE':
+                logger.debug('Setting state to {}'.format(o['value']))
+                state = o['value']
+            elif t == 'SCHEMA':
+                if 'stream' not in o:
+                    raise Exception("Line is missing required key 'stream': {}".format(line))
+                stream = o['stream']
+                schemas[stream] = o['schema']
+                validators[stream] = Draft4Validator(o['schema'])
+                if 'key_properties' not in o:
+                    raise Exception("key_properties field is required")
+                key_properties[stream] = o['key_properties']
+                out_files[stream] = open(os.path.join(temp_dir, "{0}-{1}.json".format(stream, now)), 'a')
+            else:
+                raise Exception("Unknown message type {} in message {}"
+                                .format(o['type'], o))
+
+        # Close all stream files and move to s3 target location
+        for file_iter in out_files.keys():
+            out_files[file_iter].close()
+            try:
+                logger.info('Moving file ({0}) to s3 location: {1}/{2} ...'.format(out_files[file_iter].name, target_bucket,target_key))
+                s3_client.upload_file(out_files[file_iter].name,
+                                      target_bucket,
+                                      target_key + "/" + out_files[file_iter].name)
+            except ClientError as e:
+                logger.error(e)
 
     return state
 
