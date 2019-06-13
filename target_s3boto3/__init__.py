@@ -47,7 +47,6 @@ def persist_lines(config, lines):
     state = None
     schemas = {}
     key_properties = {}
-    # headers = {}
     validators = {}
     out_files = {}
 
@@ -104,16 +103,11 @@ def persist_lines(config, lines):
                 if 'stream' not in o:
                     raise Exception("Line is missing required key 'stream': {}".format(line))
                 if o['stream'] not in schemas:
-                    raise Exception("A record for stream {} was encountered before a corresponding schema".format(o['stream']))
-
-                # Get schema for this record's stream
-                # schema = schemas[o['stream']]
+                    raise Exception("A record for stream {}".format(o['stream']) +
+                                    " was encountered before a corresponding schema")
 
                 # Validate record
                 validators[o['stream']].validate(o['record'])
-
-                # If the record needs to be flattened, uncomment this line
-                # flattened_record = flatten(o['record'])
 
                 #  writing to a file for the stream
                 out_files[o['stream']].write(json.dumps(o['record']) + '\n')
@@ -140,10 +134,12 @@ def persist_lines(config, lines):
         for file_iter in out_files.keys():
             out_files[file_iter].close()
             try:
-                logger.info('Moving file ({0}) to s3 location: {1}/{2} ...'.format(out_files[file_iter].name, target_bucket,target_key))
+                logger.info('Moving file ({0}) to s3 location: {1}/{2} ...'.format(out_files[file_iter].name,
+                                                                                   target_bucket,
+                                                                                   target_key))
                 s3_client.upload_file(out_files[file_iter].name,
                                       target_bucket,
-                                      target_key + "/" + out_files[file_iter].name)
+                                      target_key + "/" + os.path.basename(out_files[file_iter].name))
             except ClientError as e:
                 logger.error(e)
 
@@ -163,7 +159,7 @@ def send_usage_stats():
             'se_la': version,
         }
         conn.request('GET', '/i?' + urllib.parse.urlencode(params))
-        response = conn.getresponse()
+        conn.getresponse()
         conn.close()
     except:
         logger.debug('Collection request failed')
@@ -175,8 +171,8 @@ def main():
     args = parser.parse_args()
 
     if args.config:
-        with open(args.config) as input:
-            config = json.load(input)
+        with open(args.config) as args_input:
+            config = json.load(args_input)
     else:
         config = {}
 
@@ -194,8 +190,8 @@ def main():
                     'the config parameter "disable_collection" to true')
         threading.Thread(target=send_usage_stats).start()
 
-    input = io.TextIOWrapper(sys.stdin.buffer, encoding='utf-8')
-    state = persist_lines(config, input)
+    std_input = io.TextIOWrapper(sys.stdin.buffer, encoding='utf-8')
+    state = persist_lines(config, std_input)
 
     emit_state(state)
     logger.debug("Exiting normally")
