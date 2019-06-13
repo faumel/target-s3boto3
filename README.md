@@ -41,7 +41,7 @@ We can now run `tap-exchangeratesapi` and pipe the output to `target-s3boto3`.
   "target_bucket_key": "<Target S3 Bucket>/<Target S3 Key>"
 }
 ```
-* NOTE: The `<Target S3 Key>` portion of the `asasd` value is treated as a prefix to the
+* NOTE: The `<Target S3 Key>` portion of the `target_bucket_key` value is treated as a prefix to the
 
 To run `target-s3boto3` with the configuration file, use this command:
 
