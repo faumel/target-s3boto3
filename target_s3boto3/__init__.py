@@ -125,7 +125,7 @@ def persist_lines(config, lines):
                 key_properties[stream] = o['key_properties']
                 out_files[stream] = open(os.path.join(temp_dir, "{0}-{1}.json".format(stream, now)), 'a')
                 out_files[stream + "_schemas"] = open(os.path.join(temp_dir, "{0}_schemas-{1}.json".format(stream, now)), 'a')
-                out_files[stream + "_schemas"].write(json.dumps(o['record']) + '\n')
+                out_files[stream + "_schemas"].write(json.dumps(o) + '\n')
             else:
                 raise Exception("Unknown message type {} in message {}"
                                 .format(o['type'], o))
