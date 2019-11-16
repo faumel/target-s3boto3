@@ -133,11 +133,12 @@ def persist_lines(config, lines):
         # Close all stream files and move to s3 target location
         for file_iter in out_files.keys():
             out_files[file_iter].close()
+            now = datetime.now().strftime('%Y%m%dT%H%M%S')
             try:
                 logger.info('[{0}] Moving file ({1}) to s3 location: {2}/{3} ...'.format(now,
-                                                                                   out_files[file_iter].name,
-                                                                                   target_bucket,
-                                                                                   target_key))
+                                                                                         out_files[file_iter].name,
+                                                                                         target_bucket,
+                                                                                         target_key))
                 s3_client.upload_file(out_files[file_iter].name,
                                       target_bucket,
                                       target_key + "/" + os.path.basename(out_files[file_iter].name))
