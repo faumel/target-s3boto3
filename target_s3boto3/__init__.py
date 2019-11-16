@@ -73,7 +73,7 @@ def persist_lines(config, lines):
     # Use all elements except the last as the target_key
     target_key = "/".join(target_location[1:])
 
-    logger.info('Processing input ...')
+    logger.info('[{}] Processing input ...'.format(now))
     # Check if the s3 bucket exists
     try:
         s3_client.head_bucket(Bucket=target_bucket)
@@ -134,7 +134,8 @@ def persist_lines(config, lines):
         for file_iter in out_files.keys():
             out_files[file_iter].close()
             try:
-                logger.info('Moving file ({0}) to s3 location: {1}/{2} ...'.format(out_files[file_iter].name,
+                logger.info('[{0}] Moving file ({1}) to s3 location: {2}/{3} ...'.format(now,
+                                                                                   out_files[file_iter].name,
                                                                                    target_bucket,
                                                                                    target_key))
                 s3_client.upload_file(out_files[file_iter].name,
