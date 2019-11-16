@@ -1,24 +1,22 @@
 #!/usr/bin/env python3
 
 import argparse
+import boto3
+import collections
+import http.client
 import io
-import re
-import os
-import sys
 import json
+import os
+import pkg_resources
+import re
+import singer
+import sys
 import tempfile
 import threading
-import http.client
 import urllib
-from datetime import datetime
-import collections
-
-import pkg_resources
-from jsonschema.validators import Draft4Validator
-import singer
-
-import boto3
 from botocore.exceptions import ClientError
+from datetime import datetime
+from jsonschema.validators import Draft4Validator
 
 
 logger = singer.get_logger()
@@ -126,6 +124,8 @@ def persist_lines(config, lines):
                     raise Exception("key_properties field is required")
                 key_properties[stream] = o['key_properties']
                 out_files[stream] = open(os.path.join(temp_dir, "{0}-{1}.json".format(stream, now)), 'a')
+                out_files[stream + "_schemas"] = open(os.path.join(temp_dir, "{0}_schemas-{1}.json".format(stream, now)), 'a')
+                out_files[stream + "_schemas"].write(json.dumps(o['record']) + '\n')
             else:
                 raise Exception("Unknown message type {} in message {}"
                                 .format(o['type'], o))
